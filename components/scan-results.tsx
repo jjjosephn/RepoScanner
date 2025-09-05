@@ -53,21 +53,30 @@ export function ScanResults({ selectedRepository }: ScanResultsProps) {
   const [showRedacted, setShowRedacted] = useState(true)
 
   useEffect(() => {
-    if (selectedRepository) {
+    if (selectedRepository && selectedRepository !== 'undefined') {
       fetchScanResults()
     }
   }, [selectedRepository])
 
   const fetchScanResults = async () => {
-    if (!selectedRepository) return
+    if (!selectedRepository || selectedRepository === 'undefined') {
+      console.log(`Skipping fetch - invalid repository: "${selectedRepository}"`)
+      return
+    }
     
     setLoading(true)
     try {
+      console.log(`Fetching scan results for repository: ${selectedRepository}`)
+      console.trace('Call stack for fetchScanResults')
       const response = await fetch(`/api/scan/results/${selectedRepository}`)
       if (response.ok) {
         const data = await response.json()
+        console.log('Received scan results:', data)
         setSecrets(data.secrets || [])
         setDependencies(data.dependencies || [])
+        console.log(`Set ${data.secrets?.length || 0} secrets and ${data.dependencies?.length || 0} dependencies`)
+      } else {
+        console.error(`API response not ok: ${response.status}`)
       }
     } catch (error) {
       console.error('Failed to fetch scan results:', error)
