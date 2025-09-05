@@ -24,21 +24,62 @@ export async function GET(request: NextRequest) {
 
     const repos = await response.json()
     
-    // Transform GitHub API response to our format
-    const repositories = repos.map((repo: any) => ({
-      id: repo.id.toString(),
-      name: repo.name,
-      fullName: repo.full_name,
-      description: repo.description,
-      url: repo.html_url,
-      private: repo.private,
-      language: repo.language,
-      updatedAt: repo.updated_at,
-      lastScanned: null, // Will be populated from scan results
-      scanStatus: 'never',
-      secretsCount: 0,
-      dependencyRisks: 0,
-    }))
+    // Get scan results from backend to populate repository status
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:8000'
+    let scanResults: Record<string, any> = {}
+    
+    try {
+      const scanResponse = await fetch(`${backendUrl}/scan/results`, {
+        headers: {
+          'Authorization': `Bearer ${session.accessToken}`,
+        },
+      })
+      
+      if (scanResponse.ok) {
+        const scanData = await scanResponse.json()
+        scanResults = scanData.results || {}
+      }
+    } catch (error) {
+      console.log('Could not fetch scan results:', error)
+    }
+    
+    // Transform GitHub API response to our format with scan status
+    const repositories = repos.map((repo: any) => {
+      const repoId = repo.id.toString()
+      const scanResult = scanResults[repoId]
+      
+      let scanStatus = 'never'
+      let secretsCount = 0
+      let dependencyRisks = 0
+      let lastScanned = null
+      
+      if (scanResult) {
+        secretsCount = scanResult.secrets?.length || 0
+        dependencyRisks = scanResult.dependencies?.length || 0
+        lastScanned = scanResult.scannedAt || null
+        
+        if (secretsCount > 0 || dependencyRisks > 0) {
+          scanStatus = 'issues'
+        } else {
+          scanStatus = 'clean'
+        }
+      }
+      
+      return {
+        id: repoId,
+        name: repo.name,
+        fullName: repo.full_name,
+        description: repo.description,
+        url: repo.html_url,
+        private: repo.private,
+        language: repo.language,
+        updatedAt: repo.updated_at,
+        lastScanned,
+        scanStatus,
+        secretsCount,
+        dependencyRisks,
+      }
+    })
 
     return NextResponse.json({ repositories })
   } catch (error) {

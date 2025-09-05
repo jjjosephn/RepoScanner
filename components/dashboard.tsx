@@ -48,6 +48,7 @@ export function Dashboard() {
 
   const [repositories, setRepositories] = useState([])
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState('repositories')
 
   useEffect(() => {
     fetchRepositories()
@@ -236,7 +237,7 @@ export function Dashboard() {
         </div>
 
         {/* Main Content Tabs */}
-        <Tabs defaultValue="repositories" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="repositories">Repositories</TabsTrigger>
             <TabsTrigger value="findings">Security Findings</TabsTrigger>
@@ -246,7 +247,10 @@ export function Dashboard() {
           <TabsContent value="repositories" className="space-y-4">
             <RepositoryList 
               repositories={repositories}
-              onSelectRepository={setSelectedRepo}
+              onSelectRepository={(repoId) => {
+                setSelectedRepo(repoId)
+                setActiveTab('findings')
+              }}
               onScanRepository={(repoId) => startScan([repoId])}
               isScanning={summary.isScanning}
             />
