@@ -4,7 +4,7 @@ import { useSession, signIn } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Shield, Github, Scan, AlertTriangle } from 'lucide-react'
-import { Dashboard } from '@/components/dashboard'
+import { Dashboard } from '@/components/dashboard' 
 
 export default function Home() {
   const { data: session, status } = useSession()
@@ -19,15 +19,14 @@ export default function Home() {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+      <div className="min-h-screen bg-background bg-gradient-to-br from-blue-400 via-purple-400 to-gray-600">
         <div className="container mx-auto px-4 py-16">
           <div className="text-center mb-16">
-            <div className="flex justify-center mb-6">
-              <Shield className="h-16 w-16 text-primary" />
-            </div>
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              RepoScanner
-            </h1>
+            <img
+              src="/app/reposent.png"
+              alt="Repo Sentinel"
+              className="mx-auto mb-4 text-4xl font-bold"
+            />
             <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
               Secure your GitHub repositories by detecting exposed secrets and analyzing dependency risks
             </p>
