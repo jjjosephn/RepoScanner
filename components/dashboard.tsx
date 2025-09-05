@@ -221,10 +221,10 @@ export function Dashboard() {
 
         {/* Action Buttons */}
         <div className="flex space-x-4 mb-8">
-          <Button 
+          <Button
             onClick={() => startScan()} 
             disabled={summary.isScanning}
-            className="bg-primary hover:bg-primary/90 "
+            className="bg-blue-800 hover:bg-primary/90 "
           >
             <RefreshCw className={`mr-2 h-4 w-4 ${summary.isScanning ? 'animate-spin' : ''}`} />
             {summary.isScanning ? 'Scanning...' : 'Rescan All Repositories'}
@@ -237,7 +237,7 @@ export function Dashboard() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="repositories" className="space-y-4">
-          <TabsList>
+          <TabsList className="bg-blue-200">
             <TabsTrigger value="repositories">Repositories</TabsTrigger>
             <TabsTrigger value="findings">Security Findings</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>

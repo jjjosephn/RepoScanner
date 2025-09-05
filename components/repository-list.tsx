@@ -87,6 +87,7 @@ export function RepositoryList({
           <Button
             variant={filter === 'all' ? 'default' : 'outline'}
             size="sm"
+            className="bg-blue-800"
             onClick={() => setFilter('all')}
           >
             All ({repositories.length})
@@ -94,6 +95,7 @@ export function RepositoryList({
           <Button
             variant={filter === 'clean' ? 'default' : 'outline'}
             size="sm"
+            className="bg-blue-200"
             onClick={() => setFilter('clean')}
           >
             Clean ({repositories.filter(r => r.scanStatus === 'clean').length})
@@ -101,6 +103,7 @@ export function RepositoryList({
           <Button
             variant={filter === 'issues' ? 'default' : 'outline'}
             size="sm"
+            className="bg-blue-200"
             onClick={() => setFilter('issues')}
           >
             Issues ({repositories.filter(r => r.scanStatus === 'issues').length})
@@ -108,6 +111,7 @@ export function RepositoryList({
           <Button
             variant={filter === 'never' ? 'default' : 'outline'}
             size="sm"
+            className="bg-blue-200"
             onClick={() => setFilter('never')}
           >
             Not Scanned ({repositories.filter(r => r.scanStatus === 'never').length})
