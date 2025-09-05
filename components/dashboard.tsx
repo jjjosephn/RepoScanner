@@ -136,12 +136,16 @@ export function Dashboard() {
             scanningRepositoryCount: data.totalRepositories || prev.scanningRepositoryCount
           }))
           
-          // Only refresh repository data when scan is completed
-          // For single repo scans, we don't need to refresh during the process
+          // Update repository statuses when scan count increases for bulk scans
+          if (!data.completed && data.totalRepositories > 1 && (data.scannedCount > prevScannedCount || pollCount % 4 === 0)) {
+            fetchRepositories() // Refresh repository data to show updated statuses during bulk scan
+          }
+          
           if (data.completed) {
             setSummary(prev => ({ ...prev, isScanning: false }))
             clearInterval(interval)
-            fetchRepositories() // Final refresh when scan is complete
+            // Always refresh when scan is complete to show final results
+            fetchRepositories()
           }
           
           pollCount++
