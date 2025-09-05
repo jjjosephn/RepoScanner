@@ -116,13 +116,13 @@ export function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background bg-gradient-to-br from-blue-500 via-purple-500 to-gray-900">
+    <div className="min-h-screen bg-background bg-gradient-to-br from-blue-400 via-purple-400 to-gray-600">
       {/* Header CHANGE */}
       <header className=""> 
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Shield className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-bold text-white">RepoSentinel</h1>
+            <h1 className="text-2xl text-white">RepoSentinel</h1>
           </div>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
@@ -149,8 +149,8 @@ export function Dashboard() {
               <Github className="h-4 w-4 text-black" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-200">{summary.totalRepositories}</div>
-              <p className="text-xs text-blue-100">
+              <div className="text-2xl font-bold text-blue-50">{summary.totalRepositories}</div>
+              <p className="text-xs text-blue-50">
                 {summary.repositoriesScanned} scanned
               </p>
             </CardContent>
