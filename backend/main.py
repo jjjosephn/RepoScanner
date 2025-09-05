@@ -30,6 +30,7 @@ security = HTTPBearer()
 # In-memory storage for scan results (in production, use a database)
 scan_sessions: Dict[str, Dict] = {}
 scan_results: Dict[str, Dict] = {}
+scan_tasks: Dict[str, asyncio.Task] = {}  # Track running scan tasks for cancellation
 
 class ScanRequest(BaseModel):
     repositoryIds: Optional[List[str]] = None
@@ -41,6 +42,7 @@ class ScanStatus(BaseModel):
     scannedCount: int
     secretsFound: int
     dependencyRisks: int
+    totalRepositories: int = 0
 
 async def verify_github_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Verify GitHub token and return user info"""
@@ -80,12 +82,19 @@ async def start_scan(
     }
     
     # Start background scanning
-    background_tasks.add_task(
-        perform_scan,
+    task = asyncio.create_task(perform_scan(
         session_id,
         scan_request.githubToken,
         scan_request.repositoryIds
-    )
+    ))
+    scan_tasks[session_id] = task
+    
+    # Clean up task when done
+    def cleanup_task(task):
+        if session_id in scan_tasks:
+            del scan_tasks[session_id]
+    
+    task.add_done_callback(cleanup_task)
     
     return {"sessionId": session_id, "status": "started"}
 
@@ -106,7 +115,8 @@ async def get_scan_status(auth_data: dict = Depends(verify_github_token)):
             completed=True,
             scannedCount=0,
             secretsFound=0,
-            dependencyRisks=0
+            dependencyRisks=0,
+            totalRepositories=0
         )
     
     latest_session = max(user_sessions, key=lambda x: x["startTime"])
@@ -116,8 +126,53 @@ async def get_scan_status(auth_data: dict = Depends(verify_github_token)):
         completed=latest_session["completed"],
         scannedCount=latest_session["scannedCount"],
         secretsFound=latest_session["secretsFound"],
-        dependencyRisks=latest_session["dependencyRisks"]
+        dependencyRisks=latest_session["dependencyRisks"],
+        totalRepositories=latest_session.get("totalRepositories", 0)
     )
+
+@app.post("/api/scan/cancel")
+async def cancel_scan(auth_data: dict = Depends(verify_github_token)):
+    """Cancel the current scan for the user"""
+    user_id = auth_data["user"]["id"]
+    
+    # Find the latest active scan session for this user
+    user_sessions = [
+        session for session in scan_sessions.values()
+        if session["user_id"] == user_id and not session["completed"]
+    ]
+    
+    if not user_sessions:
+        raise HTTPException(status_code=404, detail="No active scan found")
+    
+    latest_session = max(user_sessions, key=lambda x: x["startTime"])
+    session_id = latest_session["id"]
+    
+    # Cancel the task if it exists
+    if session_id in scan_tasks:
+        task = scan_tasks[session_id]
+        task.cancel()
+        del scan_tasks[session_id]
+    
+    # Mark session as cancelled
+    latest_session["completed"] = True
+    latest_session["cancelled"] = True
+    latest_session["endTime"] = datetime.utcnow().isoformat()
+    
+    return {"status": "cancelled", "sessionId": session_id}
+
+@app.get("/scan/results")
+async def get_all_scan_results(auth_data: dict = Depends(verify_github_token)):
+    """Get all scan results for the user"""
+    user_id = auth_data["user"]["id"]
+    
+    # Filter results for this user
+    user_results = {}
+    for key, result in scan_results.items():
+        if key.startswith(f"{user_id}_"):
+            repo_id = key.split("_", 1)[1]  # Remove user_id prefix
+            user_results[repo_id] = result
+    
+    return {"results": user_results}
 
 @app.get("/api/scan/results/{repository_id}")
 async def get_scan_results(
@@ -134,7 +189,7 @@ async def get_scan_results(
     return scan_results[result_key]
 
 async def perform_scan(session_id: str, github_token: str, repository_ids: Optional[List[str]]):
-    """Background task to perform repository scanning"""
+    """Background task to perform repository scanning with parallel processing"""
     try:
         session = scan_sessions[session_id]
         github_client = GitHubClient(github_token)
@@ -148,33 +203,51 @@ async def perform_scan(session_id: str, github_token: str, repository_ids: Optio
             repositories = await github_client.get_all_repositories()
         
         total_repos = len(repositories)
-        scanned_count = 0
-        total_secrets = 0
-        total_dependencies = 0
+        session["progress"] = 0
+        session["scannedCount"] = 0
+        session["secretsFound"] = 0
+        session["dependencyRisks"] = 0
+        session["totalRepositories"] = total_repos  # Store actual count being scanned
         
+        # Process repositories sequentially to avoid overwhelming GitHub API
         for i, repo in enumerate(repositories):
+            # Check if scan was cancelled
+            if session_id in scan_sessions and scan_sessions[session_id].get("cancelled", False):
+                print(f"Scan {session_id} was cancelled by user")
+                break
+                
             try:
                 # Update progress
-                progress = int((i / total_repos) * 100)
-                session["progress"] = progress
+                current_progress = int((i / total_repos) * 100)
+                session["progress"] = current_progress
+                
+                print(f"Scanning repository {i+1}/{total_repos}: {repo.get('name', 'unknown')}")
                 
                 # Scan repository
                 repo_results = await scan_repository(
                     repo, github_client, secrets_detector, dependency_analyzer
                 )
                 
-                # Store results
+                # Store results with timestamp
                 result_key = f"{session['user_id']}_{repo['id']}"
-                scan_results[result_key] = repo_results
+                scan_results[result_key] = {
+                    **repo_results,
+                    "scannedAt": datetime.utcnow().isoformat()
+                }
                 
                 # Update counters
-                scanned_count += 1
-                total_secrets += len(repo_results["secrets"])
-                total_dependencies += len(repo_results["dependencies"])
+                session["scannedCount"] += 1
+                session["secretsFound"] += len(repo_results["secrets"])
+                session["dependencyRisks"] += len(repo_results["dependencies"])
                 
-                session["scannedCount"] = scanned_count
-                session["secretsFound"] = total_secrets
-                session["dependencyRisks"] = total_dependencies
+                # Update progress
+                current_progress = min(100, int(((i + 1) / total_repos) * 100))
+                session["progress"] = current_progress
+                
+                print(f"Completed {session['scannedCount']}/{total_repos} repositories ({current_progress}%)")
+                
+                # Add small delay to avoid rate limiting
+                await asyncio.sleep(0.5)
                 
             except Exception as e:
                 print(f"Error scanning repository {repo.get('name', 'unknown')}: {e}")
@@ -185,52 +258,60 @@ async def perform_scan(session_id: str, github_token: str, repository_ids: Optio
         session["completed"] = True
         session["endTime"] = datetime.utcnow().isoformat()
         
+    except asyncio.CancelledError:
+        print(f"Scan session {session_id} was cancelled")
+        session["completed"] = True
+        session["error"] = "Scan was cancelled"
     except Exception as e:
         print(f"Error in scan session {session_id}: {e}")
         session["completed"] = True
         session["error"] = str(e)
 
+
 async def scan_repository(repo, github_client, secrets_detector, dependency_analyzer):
-    """Scan a single repository for secrets and dependency risks"""
+    """Scan a single repository for secrets and dependency risks with optimizations"""
     results = {"secrets": [], "dependencies": []}
     
     try:
         # Get repository files
         files = await github_client.get_repository_files(repo["full_name"])
         
-        # Scan for secrets
-        for file_info in files:
-            if file_info["type"] == "file" and file_info["size"] < 1024 * 1024:  # Skip files > 1MB
-                try:
-                    content = await github_client.get_file_content(
-                        repo["full_name"], file_info["path"]
-                    )
-                    
-                    if content:
-                        secrets = secrets_detector.scan_content(
-                            content, file_info["path"]
-                        )
-                        results["secrets"].extend(secrets)
-                        
-                except Exception as e:
-                    print(f"Error scanning file {file_info['path']}: {e}")
-                    continue
+        # Filter files for scanning (optimize by skipping unnecessary files)
+        scannable_files = [
+            f for f in files 
+            if f["type"] == "file" 
+            and f["size"] < 512 * 1024  # Reduced from 1MB to 512KB for speed
+            and not f["path"].startswith(('.git/', 'node_modules/', '.next/', 'dist/', 'build/'))
+            and not f["name"].endswith(('.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2'))
+        ]
         
-        # Analyze dependencies
-        package_files = [f for f in files if f["name"] in ["package.json", "package-lock.json", "yarn.lock"]]
+        # Limit files to scan (top 50 most recent or important files)
+        scannable_files = scannable_files[:50]
         
+        # Scan files sequentially to avoid API issues
+        for file_info in scannable_files[:20]:  # Limit to 20 files for stability
+            try:
+                content = await github_client.get_file_content(repo["full_name"], file_info["path"])
+                if content:
+                    secrets = secrets_detector.scan_content(content, file_info["path"])
+                    results["secrets"].extend(secrets)
+            except Exception as e:
+                print(f"Error scanning file {file_info['path']}: {e}")
+                continue
+        
+        # Analyze dependencies (prioritize package files)
+        package_files = [
+            f for f in files 
+            if f["name"] in ["package.json", "package-lock.json", "yarn.lock", "requirements.txt", "Pipfile", "Gemfile"]
+        ]
+        
+        # Process dependency files sequentially
         for package_file in package_files:
             try:
-                content = await github_client.get_file_content(
-                    repo["full_name"], package_file["path"]
-                )
-                
+                content = await github_client.get_file_content(repo["full_name"], package_file["path"])
                 if content:
-                    dependencies = await dependency_analyzer.analyze_dependencies(
-                        content, package_file["name"]
-                    )
+                    dependencies = await dependency_analyzer.analyze_dependencies(content, package_file["name"])
                     results["dependencies"].extend(dependencies)
-                    
             except Exception as e:
                 print(f"Error analyzing dependencies in {package_file['path']}: {e}")
                 continue
@@ -239,6 +320,7 @@ async def scan_repository(repo, github_client, secrets_detector, dependency_anal
         print(f"Error scanning repository {repo['full_name']}: {e}")
     
     return results
+
 
 if __name__ == "__main__":
     import uvicorn

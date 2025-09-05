@@ -19,32 +19,37 @@ class GitHubClient:
         page = 1
         per_page = 100
         
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             while True:
-                response = await client.get(
-                    f"{self.base_url}/user/repos",
-                    headers=self.headers,
-                    params={
-                        "per_page": per_page,
-                        "page": page,
-                        "sort": "updated",
-                        "type": "all"
-                    }
-                )
-                
-                if response.status_code != 200:
+                try:
+                    response = await client.get(
+                        f"{self.base_url}/user/repos",
+                        headers=self.headers,
+                        params={
+                            "per_page": per_page,
+                            "page": page,
+                            "sort": "updated",
+                            "type": "all"
+                        }
+                    )
+                    
+                    if response.status_code != 200:
+                        break
+                    
+                    repos = response.json()
+                    if not repos:
+                        break
+                    
+                    repositories.extend(repos)
+                    
+                    if len(repos) < per_page:
+                        break
+                    
+                    page += 1
+                    
+                except Exception as e:
+                    print(f"Error fetching repositories page {page}: {e}")
                     break
-                
-                repos = response.json()
-                if not repos:
-                    break
-                
-                repositories.extend(repos)
-                
-                if len(repos) < per_page:
-                    break
-                
-                page += 1
         
         return repositories
     
@@ -69,17 +74,21 @@ class GitHubClient:
         return repositories
     
     async def get_repository_files(self, repo_full_name: str, path: str = "") -> List[Dict[str, Any]]:
-        """Get files in a repository recursively"""
+        """Get files in a repository recursively with timeout and rate limiting"""
         files = []
         
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             try:
                 response = await client.get(
                     f"{self.base_url}/repos/{repo_full_name}/contents/{path}",
                     headers=self.headers
                 )
                 
-                if response.status_code != 200:
+                if response.status_code == 403:
+                    print(f"Rate limited or forbidden access for {repo_full_name}")
+                    return files
+                elif response.status_code != 200:
+                    print(f"HTTP {response.status_code} for {repo_full_name}")
                     return files
                 
                 contents = response.json()
@@ -91,15 +100,22 @@ class GitHubClient:
                 for item in contents:
                     if item["type"] == "file":
                         files.append(item)
-                    elif item["type"] == "dir" and not self._should_skip_directory(item["name"]):
-                        # Recursively get files from subdirectories
+                    elif item["type"] == "dir" and not self._should_skip_directory(item["name"]) and len(files) < 100:
+                        # Limit recursion and add delay to avoid rate limiting
+                        await asyncio.sleep(0.1)
                         subfiles = await self.get_repository_files(repo_full_name, item["path"])
                         files.extend(subfiles)
+                        
+                        # Stop if we have enough files
+                        if len(files) >= 100:
+                            break
             
+            except httpx.TimeoutException:
+                print(f"Timeout getting repository files for {repo_full_name}")
             except Exception as e:
                 print(f"Error getting repository files for {repo_full_name}: {e}")
         
-        return files
+        return files[:100]  # Limit to 100 files max
     
     def _should_skip_directory(self, dir_name: str) -> bool:
         """Check if directory should be skipped during scanning"""
@@ -110,30 +126,42 @@ class GitHubClient:
         }
         return dir_name in skip_dirs
     
-    async def get_file_content(self, repo_full_name: str, file_path: str) -> Optional[str]:
+    async def get_file_content(self, repo_name: str, file_path: str) -> str:
         """Get the content of a specific file"""
-        async with httpx.AsyncClient() as client:
-            try:
+        try:
+            url = f"https://api.github.com/repos/{repo_name}/contents/{file_path}"
+            
+            async with httpx.AsyncClient(timeout=10.0) as client:  
                 response = await client.get(
-                    f"{self.base_url}/repos/{repo_full_name}/contents/{file_path}",
+                    url,
                     headers=self.headers
                 )
                 
+                if response.status_code == 403:
+                    print(f"Rate limit hit for file {file_path}")
+                    return ""  
+                
                 if response.status_code != 200:
-                    return None
+                    return ""
                 
-                file_data = response.json()
+                data = response.json()
                 
-                # GitHub API returns file content base64 encoded
-                if file_data.get("encoding") == "base64":
-                    content = base64.b64decode(file_data["content"]).decode("utf-8", errors="ignore")
-                    return content
+                # Handle different content types
+                if data.get("type") == "file" and "content" in data:
+                    import base64
+                    try:
+                        content = base64.b64decode(data["content"]).decode("utf-8")
+                        return content
+                    except UnicodeDecodeError:
+                        # Skip binary files
+                        return ""
                 
-                return file_data.get("content", "")
-            
-            except Exception as e:
-                print(f"Error getting file content for {repo_full_name}/{file_path}: {e}")
-                return None
+                return ""
+                
+        except (asyncio.TimeoutError, httpx.TimeoutException):
+            return ""  
+        except Exception as e:
+            return ""  
     
     async def get_repository_info(self, repo_full_name: str) -> Optional[Dict[str, Any]]:
         """Get detailed information about a repository"""

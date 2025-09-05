@@ -77,7 +77,10 @@ BACKEND_URL=http://localhost:8000
 ```
 
 ### 3. Setup Python Backend
-
+# FOR MAC USERS!
+# If python command is not found use python3!!!
+# EXAMPLE: python3 -m venv venv
+# if you get a failed building wheel error ignore it. app should still work
 ```bash
 cd backend
 
@@ -90,7 +93,16 @@ pip install -r requirements.txt
 ```
 
 ### 4. Run the Application
-
+# FOR MAC USERS!
+# python3 main.py
+# MIGHT GET DEPENDENCY ERRORS:
+# IF YOU GET FASTAPI missing
+# chances are you are missing httpx and uvicorn so do this!!!
+```bash
+pip install fastapi
+pip install httpx
+pip install uvicorn
+```
 **Terminal 1 - Backend:**
 ```bash
 cd backend

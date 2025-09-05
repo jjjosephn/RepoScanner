@@ -178,8 +178,12 @@ export function RepositoryList({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-blue-800"
-                    onClick={() => onSelectRepository(repo.id)}
+                    className="text-blue-800"        
+                    onClick={() => {
+                      console.log('Repository object:', repo)
+                      console.log('Repository ID:', repo.id)
+                      onSelectRepository(repo.id)
+                    }}
                   >
                     View Details
                   </Button>
