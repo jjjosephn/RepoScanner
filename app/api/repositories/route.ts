@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
     // Transform GitHub API response to our format with scan status
     const repositories = repos.map((repo: any) => {
       const repoId = repo.id.toString()
+      console.log(`Processing repository: ${repo.name}, ID: ${repoId}`)
       const scanResult = scanResults[repoId]
       
       let scanStatus = 'never'

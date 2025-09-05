@@ -59,6 +59,7 @@ export function Dashboard() {
       const response = await fetch('/api/repositories')
       if (response.ok) {
         const data = await response.json()
+        console.log('Fetched repositories:', data.repositories)
         setRepositories(data.repositories)
         setSummary(prev => ({
           ...prev,
@@ -248,8 +249,11 @@ export function Dashboard() {
             <RepositoryList 
               repositories={repositories}
               onSelectRepository={(repoId) => {
-                setSelectedRepo(repoId)
-                setActiveTab('findings')
+                console.log('Selected repository ID:', repoId)
+                if (repoId && repoId !== 'undefined') {
+                  setSelectedRepo(repoId)
+                  setActiveTab('findings')
+                }
               }}
               onScanRepository={(repoId) => startScan([repoId])}
               isScanning={summary.isScanning}
