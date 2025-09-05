@@ -153,13 +153,13 @@ export function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card">
+    <div className="min-h-screen bg-background bg-gradient-to-br from-blue-400 via-purple-400 to-gray-600">
+      {/* Header CHANGE */}
+      <header className=""> 
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Shield className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-bold">RepoScanner</h1>
+            <h1 className="text-2xl text-white">RepoSentinel</h1>
           </div>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
@@ -168,9 +168,9 @@ export function Dashboard() {
                 alt="Profile" 
                 className="w-8 h-8 rounded-full"
               />
-              <span className="text-sm font-medium">{session?.user?.name}</span>
+              <span className="text-sm font-medium text-white">{session?.user?.name}</span>
             </div>
-            <Button variant="outline" onClick={() => signOut()}>
+            <Button variant="ghost" className="text-white" onClick={() => signOut()}>
               Sign Out
             </Button>
           </div>
@@ -180,58 +180,58 @@ export function Dashboard() {
       <div className="container mx-auto px-4 py-8">
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
+          <Card className="border border-white/20 bg-white/10 backdrop-blur-xl shadow-2xl">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Repositories</CardTitle>
-              <Github className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-white">Total Repositories</CardTitle>
+              <Github className="h-4 w-4 text-black" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{summary.totalRepositories}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-2xl font-bold text-blue-50">{summary.totalRepositories}</div>
+              <p className="text-xs text-blue-50">
                 {summary.repositoriesScanned} scanned
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border border-white/20 bg-white/10 backdrop-blur-xl shadow-2xl">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Secrets Found</CardTitle>
-              <Key className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-white">Secrets Found</CardTitle>
+              <Key className="h-4 w-4 text-blue-100" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">{summary.secretsFound}</div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground text-blue-100">
                 Exposed credentials detected
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border border-white/20 bg-white/10 backdrop-blur-xl shadow-2xl">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Dependency Risks</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-white">Dependency Risks</CardTitle>
+              <Package className="h-4 w-4 text-blue-100" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-600">{summary.dependencyRisks}</div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-blue-100">
                 Vulnerable packages found
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border border-white/20 bg-white/10 backdrop-blur-xl shadow-2xl">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Security Score</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-blue-100">Security Score</CardTitle>
+              <BarChart3 className="h-4 w-4 text-white" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-2xl font-bold text-green-400">
                 {summary.totalRepositories > 0 
                   ? Math.max(0, 100 - ((summary.secretsFound + summary.dependencyRisks) / summary.totalRepositories) * 20)
                     .toFixed(0)
                   : 100}%
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-blue-100">
                 Overall security rating
               </p>
             </CardContent>
@@ -269,10 +269,10 @@ export function Dashboard() {
 
         {/* Action Buttons */}
         <div className="flex space-x-4 mb-8">
-          <Button 
+          <Button
             onClick={() => startScan()} 
             disabled={summary.isScanning}
-            className="bg-primary hover:bg-primary/90"
+            className="bg-blue-800 hover:bg-primary/90 "
           >
             <RefreshCw className={`mr-2 h-4 w-4 ${summary.isScanning ? 'animate-spin' : ''}`} />
             {summary.isScanning ? 'Scanning...' : 'Rescan All Repositories'}
@@ -284,8 +284,9 @@ export function Dashboard() {
         </div>
 
         {/* Main Content Tabs */}
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList>
+          <TabsList className="bg-blue-200">
             <TabsTrigger value="repositories">Repositories</TabsTrigger>
             <TabsTrigger value="findings">Security Findings</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>

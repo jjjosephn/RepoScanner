@@ -76,17 +76,18 @@ export function RepositoryList({
     if (repo.scanStatus === 'scanning') {
       return <Badge variant="secondary">Scanning...</Badge>
     }
-    return <Badge variant="outline">Not Scanned</Badge>
+    return <Badge variant="secondary">Not Scanned</Badge>
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Repositories</h2>
+        <h2 className="text-2xl font-bold text-white">Repositories</h2>
         <div className="flex space-x-2">
           <Button
             variant={filter === 'all' ? 'default' : 'outline'}
             size="sm"
+            className="bg-blue-800"
             onClick={() => setFilter('all')}
           >
             All ({repositories.length})
@@ -94,6 +95,7 @@ export function RepositoryList({
           <Button
             variant={filter === 'clean' ? 'default' : 'outline'}
             size="sm"
+            className="bg-blue-200"
             onClick={() => setFilter('clean')}
           >
             Clean ({repositories.filter(r => r.scanStatus === 'clean').length})
@@ -101,6 +103,7 @@ export function RepositoryList({
           <Button
             variant={filter === 'issues' ? 'default' : 'outline'}
             size="sm"
+            className="bg-blue-200"
             onClick={() => setFilter('issues')}
           >
             Issues ({repositories.filter(r => r.scanStatus === 'issues').length})
@@ -108,6 +111,7 @@ export function RepositoryList({
           <Button
             variant={filter === 'never' ? 'default' : 'outline'}
             size="sm"
+            className="bg-blue-200"
             onClick={() => setFilter('never')}
           >
             Not Scanned ({repositories.filter(r => r.scanStatus === 'never').length})
@@ -117,17 +121,17 @@ export function RepositoryList({
 
       <div className="grid gap-4">
         {filteredRepositories.map((repo) => (
-          <Card key={repo.id} className="hover:shadow-md transition-shadow">
+          <Card key={repo.id} className="hover:shadow-md transition-shadow border border-white/20 bg-white/15 backdrop-blur-xl shadow-l">
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex items-center space-x-3">
-                  <Github className="h-5 w-5 text-muted-foreground" />
+                  <Github className="h-5 w-5 text-black" />
                   <div>
-                    <CardTitle className="text-lg">{repo.name}</CardTitle>
-                    <CardDescription className="flex items-center space-x-2">
+                    <CardTitle className="text-lg text-white">{repo.name}</CardTitle>
+                    <CardDescription className="flex items-center space-x-2 text-blue-100">
                       <span>{repo.fullName}</span>
                       {repo.private && (
-                        <Badge variant="outline" className="text-xs">Private</Badge>
+                        <Badge variant="outline" className="text-x text-white">Private</Badge>
                       )}
                       {repo.language && (
                         <Badge variant="secondary" className="text-xs">{repo.language}</Badge>
@@ -145,11 +149,11 @@ export function RepositoryList({
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   {repo.description && (
-                    <p className="text-sm text-muted-foreground mb-2">
+                    <p className="text-sm text-blue-100 mb-2">
                       {repo.description}
                     </p>
                   )}
-                  <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                  <div className="flex items-center space-x-4 text-sm text-blue-100">
                     {repo.lastScanned && (
                       <span>Last scanned: {new Date(repo.lastScanned).toLocaleDateString()}</span>
                     )}
@@ -174,6 +178,7 @@ export function RepositoryList({
                   <Button
                     variant="outline"
                     size="sm"
+                    className="text-blue-800"        
                     onClick={() => {
                       console.log('Repository object:', repo)
                       console.log('Repository ID:', repo.id)
@@ -185,6 +190,7 @@ export function RepositoryList({
                   <Button
                     variant="outline"
                     size="sm"
+                    className="text-blue-800"
                     onClick={() => onScanRepository(repo.id)}
                     disabled={isScanning || repo.scanStatus === 'scanning'}
                   >
