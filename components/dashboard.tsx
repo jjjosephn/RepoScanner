@@ -20,7 +20,8 @@ import {
   Package,
   Key,
   FileText,
-  BarChart3
+  BarChart3,
+  X
 } from 'lucide-react'
 import { RepositoryList } from '@/components/repository-list'
 import { ScanResults } from '@/components/scan-results'
@@ -33,6 +34,7 @@ interface ScanSummary {
   dependencyRisks: number
   isScanning: boolean
   scanProgress: number
+  scanningRepositoryCount: number
 }
 
 export function Dashboard() {
@@ -43,7 +45,8 @@ export function Dashboard() {
     secretsFound: 0,
     dependencyRisks: 0,
     isScanning: false,
-    scanProgress: 0
+    scanProgress: 0,
+    scanningRepositoryCount: 0
   })
 
   const [repositories, setRepositories] = useState([])
@@ -72,13 +75,21 @@ export function Dashboard() {
   }
 
   const startScan = async (repoIds?: string[]) => {
+    console.log('startScan called with repoIds:', repoIds)
+    console.log('repoIds type:', typeof repoIds)
+    console.log('repoIds is array:', Array.isArray(repoIds))
+    console.log('repoIds length:', repoIds?.length)
+    
     setSummary(prev => ({ ...prev, isScanning: true, scanProgress: 0 }))
     
     try {
+      const requestBody = { repositoryIds: repoIds }
+      console.log('Sending request body:', JSON.stringify(requestBody, null, 2))
+      
       const response = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ repositoryIds: repoIds })
+        body: JSON.stringify(requestBody)
       })
       
       if (response.ok) {
@@ -91,25 +102,49 @@ export function Dashboard() {
     }
   }
 
+  const cancelScan = async () => {
+    try {
+      const response = await fetch('/api/scan/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      
+      if (response.ok) {
+        setSummary(prev => ({ ...prev, isScanning: false }))
+        fetchRepositories() // Refresh to show updated statuses
+      }
+    } catch (error) {
+      console.error('Failed to cancel scan:', error)
+    }
+  }
+
   const pollScanProgress = async () => {
+    let pollCount = 0
     const interval = setInterval(async () => {
       try {
         const response = await fetch('/api/scan/status')
         if (response.ok) {
           const data = await response.json()
+          const prevScannedCount = summary.repositoriesScanned
+          
           setSummary(prev => ({
             ...prev,
             scanProgress: data.progress,
             repositoriesScanned: data.scannedCount,
             secretsFound: data.secretsFound,
-            dependencyRisks: data.dependencyRisks
+            dependencyRisks: data.dependencyRisks,
+            scanningRepositoryCount: data.totalRepositories || prev.scanningRepositoryCount
           }))
           
+          // Only refresh repository data when scan is completed
+          // For single repo scans, we don't need to refresh during the process
           if (data.completed) {
             setSummary(prev => ({ ...prev, isScanning: false }))
             clearInterval(interval)
-            fetchRepositories() // Refresh repository data
+            fetchRepositories() // Final refresh when scan is complete
           }
+          
+          pollCount++
         }
       } catch (error) {
         console.error('Failed to fetch scan status:', error)
@@ -214,9 +249,20 @@ export function Dashboard() {
             </CardHeader>
             <CardContent>
               <Progress value={summary.scanProgress} className="mb-2" />
-              <p className="text-sm text-muted-foreground">
-                {summary.scanProgress}% complete - Analyzing {summary.repositoriesScanned} of {summary.totalRepositories} repositories
-              </p>
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-muted-foreground">
+                  {summary.scanProgress}% complete - Analyzing {summary.repositoriesScanned} of {summary.scanningRepositoryCount > 0 ? summary.scanningRepositoryCount : summary.totalRepositories} repositories
+                </p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={cancelScan}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <X className="mr-1 h-3 w-3" />
+                  Cancel
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}

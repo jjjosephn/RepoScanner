@@ -30,6 +30,7 @@ security = HTTPBearer()
 # In-memory storage for scan results (in production, use a database)
 scan_sessions: Dict[str, Dict] = {}
 scan_results: Dict[str, Dict] = {}
+scan_tasks: Dict[str, asyncio.Task] = {}  # Track running scan tasks for cancellation
 
 class ScanRequest(BaseModel):
     repositoryIds: Optional[List[str]] = None
@@ -41,6 +42,7 @@ class ScanStatus(BaseModel):
     scannedCount: int
     secretsFound: int
     dependencyRisks: int
+    totalRepositories: int = 0
 
 async def verify_github_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Verify GitHub token and return user info"""
@@ -80,12 +82,19 @@ async def start_scan(
     }
     
     # Start background scanning
-    background_tasks.add_task(
-        perform_scan,
+    task = asyncio.create_task(perform_scan(
         session_id,
         scan_request.githubToken,
         scan_request.repositoryIds
-    )
+    ))
+    scan_tasks[session_id] = task
+    
+    # Clean up task when done
+    def cleanup_task(task):
+        if session_id in scan_tasks:
+            del scan_tasks[session_id]
+    
+    task.add_done_callback(cleanup_task)
     
     return {"sessionId": session_id, "status": "started"}
 
@@ -106,7 +115,8 @@ async def get_scan_status(auth_data: dict = Depends(verify_github_token)):
             completed=True,
             scannedCount=0,
             secretsFound=0,
-            dependencyRisks=0
+            dependencyRisks=0,
+            totalRepositories=0
         )
     
     latest_session = max(user_sessions, key=lambda x: x["startTime"])
@@ -116,8 +126,39 @@ async def get_scan_status(auth_data: dict = Depends(verify_github_token)):
         completed=latest_session["completed"],
         scannedCount=latest_session["scannedCount"],
         secretsFound=latest_session["secretsFound"],
-        dependencyRisks=latest_session["dependencyRisks"]
+        dependencyRisks=latest_session["dependencyRisks"],
+        totalRepositories=latest_session.get("totalRepositories", 0)
     )
+
+@app.post("/api/scan/cancel")
+async def cancel_scan(auth_data: dict = Depends(verify_github_token)):
+    """Cancel the current scan for the user"""
+    user_id = auth_data["user"]["id"]
+    
+    # Find the latest active scan session for this user
+    user_sessions = [
+        session for session in scan_sessions.values()
+        if session["user_id"] == user_id and not session["completed"]
+    ]
+    
+    if not user_sessions:
+        raise HTTPException(status_code=404, detail="No active scan found")
+    
+    latest_session = max(user_sessions, key=lambda x: x["startTime"])
+    session_id = latest_session["id"]
+    
+    # Cancel the task if it exists
+    if session_id in scan_tasks:
+        task = scan_tasks[session_id]
+        task.cancel()
+        del scan_tasks[session_id]
+    
+    # Mark session as cancelled
+    latest_session["completed"] = True
+    latest_session["cancelled"] = True
+    latest_session["endTime"] = datetime.utcnow().isoformat()
+    
+    return {"status": "cancelled", "sessionId": session_id}
 
 @app.get("/scan/results")
 async def get_all_scan_results(auth_data: dict = Depends(verify_github_token)):
@@ -166,9 +207,15 @@ async def perform_scan(session_id: str, github_token: str, repository_ids: Optio
         session["scannedCount"] = 0
         session["secretsFound"] = 0
         session["dependencyRisks"] = 0
+        session["totalRepositories"] = total_repos  # Store actual count being scanned
         
         # Process repositories sequentially to avoid overwhelming GitHub API
         for i, repo in enumerate(repositories):
+            # Check if scan was cancelled
+            if session_id in scan_sessions and scan_sessions[session_id].get("cancelled", False):
+                print(f"Scan {session_id} was cancelled by user")
+                break
+                
             try:
                 # Update progress
                 current_progress = int((i / total_repos) * 100)
