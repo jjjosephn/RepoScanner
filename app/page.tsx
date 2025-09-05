@@ -23,7 +23,6 @@ export default function Home() {
         <div className="container mx-auto px-4 py-16">
           <div className="text-center mb-16">
             <img
-              src="/app/reposent.png"
               alt="Repo Sentinel"
               className="mx-auto mb-4 text-4xl font-bold"
             />
