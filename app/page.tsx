@@ -1,91 +1,124 @@
-'use client'
+"use client";
 
-import { useSession, signIn } from 'next-auth/react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Shield, Github, Scan, AlertTriangle } from 'lucide-react'
-import { Dashboard } from '@/components/dashboard' 
+import { useSession, signIn } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Shield, Github, Scan, AlertTriangle } from "lucide-react";
+import { Dashboard } from "@/components/dashboard";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { PageLoading } from "@/components/page-loading";
 
 export default function Home() {
-  const { data: session, status } = useSession()
+  const { data: session, status } = useSession();
 
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-      </div>
-    )
+  if (status === "loading") {
+    return <PageLoading />;
   }
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-background bg-gradient-to-br from-blue-400 via-purple-400 to-gray-600">
-        <div className="container mx-auto px-4 py-16">
-          <div className="text-center mb-16">
-            <img
-              alt="Repo Sentinel"
-              className="mx-auto mb-4 text-4xl font-bold"
-            />
-            <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
-              Secure your GitHub repositories by detecting exposed secrets and analyzing dependency risks
-            </p>
-            <Button 
-              onClick={() => signIn('github')} 
-              size="lg" 
-              className="bg-gray-900 hover:bg-gray-800 text-white"
-            >
-              <Github className="mr-2 h-5 w-5" />
-              Sign in with GitHub
-            </Button>
-          </div>
+      <div className="marketing-surface">
+        <div className="marketing-content">
+          <header className="border-b border-border/60 bg-card/40 backdrop-blur-md">
+            <div className="container flex items-center justify-between py-4">
+              <div className="flex items-center gap-2">
+                <Shield
+                  className="h-8 w-8 text-primary"
+                  aria-hidden
+                />
+                <span className="font-display text-lg font-semibold tracking-tight text-foreground">
+                  RepoScanner
+                </span>
+              </div>
+              <ThemeToggle />
+            </div>
+          </header>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Scan className="mr-2 h-5 w-5 text-blue-500" />
-                  Secrets Detection
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription>
-                  Automatically scan repositories for exposed API keys, tokens, and credentials using advanced pattern matching and entropy analysis.
-                </CardDescription>
-              </CardContent>
-            </Card>
+          <main className="container py-16 md:py-24">
+            <div className="mx-auto max-w-2xl text-center">
+              <p className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                GitHub security
+              </p>
+              <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground md:text-5xl">
+                Scan repos for secrets &amp; risky dependencies
+              </h1>
+              <p className="mt-5 text-base leading-relaxed text-muted-foreground md:text-lg">
+                Detect exposed credentials with pattern and entropy checks, and
+                review dependency risk from your dashboards—without storing raw
+                secrets.
+              </p>
+              <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+                <Button
+                  onClick={() => signIn("github")}
+                  size="lg"
+                  className="rounded-full px-8"
+                >
+                  <Github className="mr-2 h-5 w-5" aria-hidden />
+                  Sign in with GitHub
+                </Button>
+              </div>
+            </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <AlertTriangle className="mr-2 h-5 w-5 text-orange-500" />
-                  Dependency Analysis
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription>
-                  Identify vulnerable dependencies and compromised packages in your package.json and lock files with detailed remediation guidance.
-                </CardDescription>
-              </CardContent>
-            </Card>
+            <div className="mx-auto mt-20 grid max-w-5xl gap-6 md:grid-cols-3">
+              <Card className="border-border/80 bg-card/85 shadow-card backdrop-blur-sm">
+                <CardHeader className="space-y-1">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Scan className="h-5 w-5 text-primary" aria-hidden />
+                    Secrets detection
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="text-base leading-relaxed">
+                    Pattern matching plus entropy scoring for API keys, tokens,
+                    and common credential shapes—shown redacted.
+                  </CardDescription>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Shield className="mr-2 h-5 w-5 text-green-500" />
-                  Privacy First
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription>
-                  All sensitive data is redacted and never stored. Only partial key fragments are displayed to maintain your security.
-                </CardDescription>
-              </CardContent>
-            </Card>
-          </div>
+              <Card className="border-border/80 bg-card/85 shadow-card backdrop-blur-sm">
+                <CardHeader className="space-y-1">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <AlertTriangle
+                      className="h-5 w-5 text-warning"
+                      aria-hidden
+                    />
+                    Dependency analysis
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="text-base leading-relaxed">
+                    Flag vulnerable or suspicious packages using manifest and
+                    lockfile context, with remediation hints.
+                  </CardDescription>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/80 bg-card/85 shadow-card backdrop-blur-sm">
+                <CardHeader className="space-y-1">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Shield className="h-5 w-5 text-success" aria-hidden />
+                    Privacy first
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="text-base leading-relaxed">
+                    Sensitive matches stay redacted; analysis runs in your
+                    environment with minimal retained data.
+                  </CardDescription>
+                </CardContent>
+              </Card>
+            </div>
+          </main>
         </div>
       </div>
-    )
+    );
   }
 
-  return <Dashboard />
+  return <Dashboard />;
 }
