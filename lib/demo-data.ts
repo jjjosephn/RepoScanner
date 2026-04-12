@@ -116,26 +116,27 @@ export interface DemoDependencyRisk {
 export const DEMO_DEPENDENCY_RISKS: DemoDependencyRisk[] = [
   {
     id: "demo-dep-1",
-    package: "lodash",
-    version: "4.17.15",
+    package: "axios",
+    version: "1.5.1",
     riskLevel: "high",
-    vulnerability: "Prototype pollution in older lodash releases (sample advisory text).",
-    cve: "CVE-2020-8203",
-    advisoryUrl: "https://example.com/demo-advisory-lodash",
-    recommendedVersion: "4.17.21",
+    vulnerability:
+      "Cross-Site Request Forgery (CSRF) / XSRF bypass when sending requests with `withCredentials` — fixed in later 1.x releases.",
+    cve: "CVE-2023-45857",
+    advisoryUrl: "https://github.com/advisories/GHSA-wf5p-g6vw-rhxx",
+    recommendedVersion: "1.6.4",
     description:
-      "Fictional row for UI demo — always verify against npm/GitHub advisories for your real versions.",
+      "Widely used HTTP client; pin to patched 1.6.4+ (or current 1.x) and re-run your lockfile audit. Demo row mirrors a real advisory shape.",
   },
   {
     id: "demo-dep-2",
-    package: "axios",
-    version: "0.21.1",
-    riskLevel: "medium",
-    vulnerability: "Request smuggling / SSRF hardening in legacy axios (illustrative).",
-    cve: "CVE-2023-45857",
-    advisoryUrl: "https://example.com/demo-advisory-axios",
-    recommendedVersion: "1.6.8",
+    package: "synckit",
+    version: "0.8.5",
+    riskLevel: "critical",
+    vulnerability:
+      "Supply-chain incident: malicious npm releases in the 0.8.4–0.8.5 range reported as trojanized builds (credential / CI exfiltration risk).",
+    advisoryUrl: "https://www.npmjs.com/package/synckit",
+    recommendedVersion: "0.8.6",
     description:
-      "Sample CVE-style label for layout testing; confirm with your dependency graph.",
+      "Treat like a compromised line: bump to a clean patch release, rotate CI/npm tokens if this version was ever installed, and verify lockfiles. Same class of risk as other recent npm supply-chain waves.",
   },
 ];
