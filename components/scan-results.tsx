@@ -23,6 +23,7 @@ import {
   Copy,
   CheckCircle,
 } from "lucide-react";
+import { severityToBadgeVariant } from "@/lib/severity-badge";
 
 interface SecretFinding {
   id: string;
@@ -83,18 +84,6 @@ export function ScanResults({ selectedRepository }: ScanResultsProps) {
       console.error("Failed to fetch scan results:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const getSeverityVariant = (severity: string) => {
-    switch (severity) {
-      case "critical":
-      case "high":
-        return "destructive" as const;
-      case "medium":
-        return "warning" as const;
-      default:
-        return "secondary" as const;
     }
   };
 
@@ -211,7 +200,7 @@ export function ScanResults({ selectedRepository }: ScanResultsProps) {
                           <span className="break-words">
                             {secret.provider} {secret.type}
                           </span>
-                          <Badge variant={getSeverityVariant(secret.severity)}>
+                          <Badge variant={severityToBadgeVariant(secret.severity)}>
                             {secret.severity}
                           </Badge>
                         </CardTitle>
@@ -299,7 +288,7 @@ export function ScanResults({ selectedRepository }: ScanResultsProps) {
                           />
                           <span>{dep.package}</span>
                           <Badge variant="outline">{dep.version}</Badge>
-                          <Badge variant={getSeverityVariant(dep.riskLevel)}>
+                          <Badge variant={severityToBadgeVariant(dep.riskLevel)}>
                             {dep.riskLevel}
                           </Badge>
                         </CardTitle>
