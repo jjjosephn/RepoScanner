@@ -10,17 +10,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { SummaryStatCards } from "@/components/summary-stat-cards";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Shield,
-  Github,
-  RefreshCw,
-  Key,
-  Package,
-  BarChart3,
-  X,
-} from "lucide-react";
+import { Shield, Github, RefreshCw, X, BarChart3 } from "lucide-react";
 import { RepositoryList } from "@/components/repository-list";
 import { ScanResults } from "@/components/scan-results";
 import { RiskChart } from "@/components/risk-chart";
@@ -195,75 +188,13 @@ export function Dashboard() {
       </header>
 
       <div className="container py-8 md:py-10">
-        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total repositories
-              </CardTitle>
-              <Github className="h-4 w-4 text-muted-foreground" aria-hidden />
-            </CardHeader>
-            <CardContent>
-              <p className="font-display text-3xl font-semibold tabular-nums">
-                {summary.totalRepositories}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {summary.repositoriesScanned} scanned
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Secrets found
-              </CardTitle>
-              <Key className="h-4 w-4 text-muted-foreground" aria-hidden />
-            </CardHeader>
-            <CardContent>
-              <p className="font-display text-3xl font-semibold tabular-nums text-destructive">
-                {summary.secretsFound}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Redacted detections
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Dependency risks
-              </CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" aria-hidden />
-            </CardHeader>
-            <CardContent>
-              <p className="font-display text-3xl font-semibold tabular-nums text-warning">
-                {summary.dependencyRisks}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                From lockfiles &amp; manifests
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Security score
-              </CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" aria-hidden />
-            </CardHeader>
-            <CardContent>
-              <p className="font-display text-3xl font-semibold tabular-nums text-success">
-                {securityScore}%
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Heuristic from findings
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        <SummaryStatCards
+          totalRepositories={summary.totalRepositories}
+          repositoriesScanned={summary.repositoriesScanned}
+          secretsFound={summary.secretsFound}
+          dependencyRisks={summary.dependencyRisks}
+          securityScorePercent={securityScore}
+        />
 
         {summary.isScanning && (
           <Card className="mb-8 border-primary/20 shadow-elevated">
