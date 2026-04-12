@@ -1,125 +1,221 @@
-'use client'
+"use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { useEffect, useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
 
 interface Repository {
-  id: string
-  name: string
-  scanStatus: string
-  secretsCount: number
-  dependencyRisks: number
+  id: string;
+  name: string;
+  scanStatus: string;
+  secretsCount: number;
+  dependencyRisks: number;
 }
 
 interface RiskChartProps {
-  repositories: Repository[]
+  repositories: Repository[];
+}
+
+type ChartColors = {
+  clean: string;
+  secrets: string;
+  deps: string;
+  muted: string;
+  barSecrets: string;
+  barDeps: string;
+};
+
+function readChartColors(): ChartColors {
+  if (typeof window === "undefined") {
+    return {
+      clean: "#34d399",
+      secrets: "#f87171",
+      deps: "#fbbf24",
+      muted: "#64748b",
+      barSecrets: "#f87171",
+      barDeps: "#fbbf24",
+    };
+  }
+  const root = document.documentElement;
+  const s = getComputedStyle(root);
+  const pick = (name: string, fallback: string) => {
+    const v = s.getPropertyValue(name).trim();
+    return v || fallback;
+  };
+  return {
+    clean: pick("--chart-clean", "#34d399"),
+    secrets: pick("--chart-secrets", "#f87171"),
+    deps: pick("--chart-deps", "#fbbf24"),
+    muted: pick("--chart-muted", "#64748b"),
+    barSecrets: pick("--chart-bar-secrets", "#f87171"),
+    barDeps: pick("--chart-bar-deps", "#fbbf24"),
+  };
 }
 
 export function RiskChart({ repositories }: RiskChartProps) {
-  // Prepare data for risk distribution chart
+  const [colors, setColors] = useState<ChartColors>(() => readChartColors());
+
+  useEffect(() => {
+    setColors(readChartColors());
+    const el = document.documentElement;
+    const obs = new MutationObserver(() => setColors(readChartColors()));
+    obs.observe(el, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => obs.disconnect();
+  }, []);
+
   const riskData = [
     {
-      name: 'Clean',
-      count: repositories.filter(r => r.scanStatus === 'clean').length,
-      color: '#10b981'
+      name: "Clean",
+      count: repositories.filter((r) => r.scanStatus === "clean").length,
+      color: colors.clean,
     },
     {
-      name: 'Secrets Found',
-      count: repositories.filter(r => r.secretsCount > 0).length,
-      color: '#ef4444'
+      name: "Secrets",
+      count: repositories.filter((r) => r.secretsCount > 0).length,
+      color: colors.secrets,
     },
     {
-      name: 'Dependency Risks',
-      count: repositories.filter(r => r.dependencyRisks > 0).length,
-      color: '#f59e0b'
+      name: "Deps",
+      count: repositories.filter((r) => r.dependencyRisks > 0).length,
+      color: colors.deps,
     },
     {
-      name: 'Not Scanned',
-      count: repositories.filter(r => r.scanStatus === 'never').length,
-      color: '#6b7280'
-    }
-  ]
+      name: "Not scanned",
+      count: repositories.filter((r) => r.scanStatus === "never").length,
+      color: colors.muted,
+    },
+  ];
 
-  // Prepare data for severity distribution
   const severityData = repositories
-    .filter(r => r.scanStatus === 'issues')
-    .map(r => ({
-      name: r.name.length > 15 ? r.name.substring(0, 15) + '...' : r.name,
+    .filter((r) => r.scanStatus === "issues")
+    .map((r) => ({
+      name: r.name.length > 15 ? r.name.substring(0, 15) + "…" : r.name,
       secrets: r.secretsCount,
       dependencies: r.dependencyRisks,
-      total: r.secretsCount + r.dependencyRisks
+      total: r.secretsCount + r.dependencyRisks,
     }))
     .sort((a, b) => b.total - a.total)
-    .slice(0, 10) // Top 10 repositories with issues
-
-  const COLORS = ['#10b981', '#ef4444', '#f59e0b', '#6b7280']
+    .slice(0, 10);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <Card>
         <CardHeader>
-          <CardTitle>Risk Distribution</CardTitle>
+          <CardTitle>Risk distribution</CardTitle>
           <CardDescription>
-            Overview of security status across all repositories
+            Status mix across repositories (last known scan).
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={riskData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, count, percent }) => 
-                  `${name}: ${count} (${(percent * 100).toFixed(0)}%)`
-                }
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="count"
-              >
-                {riskData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          <div className="h-[300px] w-full min-h-[240px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={riskData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, count, percent }) =>
+                    `${name}: ${count} (${(percent * 100).toFixed(0)}%)`
+                  }
+                  outerRadius={88}
+                  dataKey="count"
+                >
+                  {riskData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    background: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "var(--radius-md)",
+                    color: "hsl(var(--foreground))",
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Top Repositories by Issues</CardTitle>
+          <CardTitle>Top repositories by issues</CardTitle>
           <CardDescription>
-            Repositories with the most security findings
+            Stacked secrets vs dependency flags (up to ten repos).
           </CardDescription>
         </CardHeader>
         <CardContent>
           {severityData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={severityData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="name" 
-                  angle={-45}
-                  textAnchor="end"
-                  height={100}
-                  fontSize={12}
-                />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="secrets" stackId="a" fill="#ef4444" name="Secrets" />
-                <Bar dataKey="dependencies" stackId="a" fill="#f59e0b" name="Dependencies" />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="h-[300px] w-full min-h-[240px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={severityData}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--border))"
+                    opacity={0.6}
+                  />
+                  <XAxis
+                    dataKey="name"
+                    angle={-40}
+                    textAnchor="end"
+                    height={96}
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                  />
+                  <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "var(--radius-md)",
+                      color: "hsl(var(--foreground))",
+                    }}
+                  />
+                  <Bar
+                    dataKey="secrets"
+                    stackId="a"
+                    fill={colors.barSecrets}
+                    name="Secrets"
+                    radius={[0, 0, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="dependencies"
+                    stackId="a"
+                    fill={colors.barDeps}
+                    name="Dependencies"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           ) : (
-            <div className="text-center text-muted-foreground py-8">
-              No security issues found across repositories
+            <div
+              className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/80 bg-muted/30 py-14 text-center text-sm text-muted-foreground"
+              role="status"
+            >
+              No repositories with open issues in this view.
             </div>
           )}
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
