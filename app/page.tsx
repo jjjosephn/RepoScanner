@@ -13,6 +13,7 @@ import { Shield, Github, Scan, AlertTriangle } from "lucide-react";
 import { Dashboard } from "@/components/dashboard";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { PageLoading } from "@/components/page-loading";
+import { MarketingLiveDemo } from "@/components/marketing-live-demo";
 
 export default function Home() {
   const { data: session, status } = useSession();
@@ -53,7 +54,7 @@ export default function Home() {
                 review dependency risk from your dashboards—without storing raw
                 secrets.
               </p>
-              <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+              <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row sm:flex-wrap">
                 <Button
                   onClick={() => signIn("github")}
                   size="lg"
@@ -62,6 +63,12 @@ export default function Home() {
                   <Github className="mr-2 h-5 w-5" aria-hidden />
                   Sign in with GitHub
                 </Button>
+                <a
+                  href="#live-demo"
+                  className="text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                >
+                  View sample demo
+                </a>
               </div>
             </div>
 
@@ -114,6 +121,8 @@ export default function Home() {
                 </CardContent>
               </Card>
             </div>
+
+            <MarketingLiveDemo />
           </main>
         </div>
       </div>
