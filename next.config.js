@@ -3,13 +3,9 @@ const nextConfig = {
   experimental: {
     appDir: true,
   },
-  env: {
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000',
-    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
-    GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID,
-    GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET,
-    BACKEND_URL: process.env.BACKEND_URL || 'http://localhost:8000',
-  },
+  // Use .env.local for NEXTAUTH_*, GITHUB_*, BACKEND_URL (server-only). Do not put secrets in `env`
+  // here — that inlines values into the browser bundle. The UI only talks to this app on :3000;
+  // Route Handlers proxy to BACKEND_URL (Python) on :8000.
 }
 
 module.exports = nextConfig
