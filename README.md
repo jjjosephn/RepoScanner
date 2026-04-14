@@ -37,7 +37,21 @@ A comprehensive web application that helps developers secure their GitHub reposi
 - **FastAPI** (Python) for high-performance API
 - **GitHub API** integration for repository access
 - **Async processing** for concurrent scanning
-- **In-memory storage** (production-ready for database integration)
+- **PostgreSQL** (optional via `DATABASE_URL` + SQLAlchemy/asyncpg); otherwise in-memory scan state
+
+## Theming
+
+- **Design tokens** live in `app/globals.css` as HSL components under `[data-theme="dark"]` and `[data-theme="light"]` (e.g. `--background`, `--primary`, `--radius-lg`, `--shadow-card`).
+- **Tailwind** maps those variables in `tailwind.config.js` (`colors`, `boxShadow`, `fontFamily`, etc.).
+- The root **`app/layout.tsx`** runs an inline script so `document.documentElement` gets `data-theme` from `localStorage` (`reposcanner-theme`) before paint, defaulting to **dark**. Use **`components/theme-toggle.tsx`** on the marketing page and dashboard to switch themes.
+
+## Marketing live demo (static)
+
+The signed-out landing page includes a **Live demo** section that **does not** call the scan API or GitHub OAuth.
+
+- **Sample payloads:** `lib/demo-data.ts` (repositories, redacted secret fragments, fake CVE-style dependency rows, remediation copy).
+- **UI + scripted animation:** `components/marketing-live-demo.tsx` (progress bar, staggered stats/repos, then findings). Secret and dependency cards mount one at a time with a **slide-in / fade** entrance (`findingCardEnter`); timing knobs live in `DEMO_MS` (`findingCardStagger`, `afterSecretsToDeps`). If the user has **`prefers-reduced-motion: reduce`**, the demo jumps straight to the final state.
+- **Shared dashboard visuals:** summary stat cards use **`components/summary-stat-cards.tsx`**, the same component as the signed-in dashboard.
 
 ## Quick Start
 
@@ -91,6 +105,19 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 # Install dependencies
 pip install -r requirements.txt
 ```
+
+#### PostgreSQL (optional)
+
+Without `DATABASE_URL`, scan progress and results live in process memory only. To persist scans across restarts:
+
+1. From the repo root: `docker compose up -d postgres` (see `docker-compose.yml`).
+2. Add to `backend/.env` (the backend loads `.env` from the current working directory):
+
+   `DATABASE_URL=postgresql+asyncpg://reposcanner:reposcanner@localhost:5432/reposcanner`
+
+3. Start the backend as usual; tables are created on startup. For production, use a managed database and TLS.
+
+**CORS:** set `FRONTEND_ORIGINS` to a comma-separated list if the Next.js app is not only on `http://localhost:3000`.
 
 ### 4. Run the Application
 # FOR MAC USERS!
@@ -146,7 +173,7 @@ Visit `http://localhost:3000` and sign in with GitHub!
 ## Security Features
 
 ### Privacy Protection
-- **No Storage**: Secrets are never stored, only analyzed in memory
+- **Minimal retention**: Findings are analyzed in memory; with PostgreSQL enabled, redacted metadata and dependency rows may be stored until you delete them
 - **Redaction**: Only partial key fragments shown (e.g., `AKIA****1234`)
 - **Local Processing**: All analysis happens on your infrastructure
 - **Secure Transit**: HTTPS encryption for all API communications
