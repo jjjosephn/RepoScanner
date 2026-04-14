@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: reposcanner
+      POSTGRES_PASSWORD: reposcanner
+      POSTGRES_DB: reposcanner
+    ports:
+      - "5432:5432"
+    volumes:
+      - reposcanner_pgdata:/var/lib/postgresql/data
+
+volumes:
+  reposcanner_pgdata:
