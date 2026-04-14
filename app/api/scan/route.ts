@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { authOptions } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
 
     const response = await fetch(`${backendUrl}/api/scan`, {
       method: "POST",
+      cache: "no-store",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${session.accessToken}`,

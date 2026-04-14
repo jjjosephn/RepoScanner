@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../../auth/[...nextauth]/route";
+import { authOptions } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
@@ -44,6 +44,7 @@ export async function GET(
     const response = await fetch(
       `${backendUrl}/api/scan/results/${repositoryId}`,
       {
+        cache: "no-store",
         headers: {
           Authorization: `Bearer ${session.accessToken}`,
         },

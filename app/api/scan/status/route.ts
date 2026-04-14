@@ -1,6 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '../../auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth'
+
+// Never cache — progress must reflect live Python scan state (Next fetch cache breaks polling).
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
@@ -13,6 +16,7 @@ export async function GET() {
     // Get scan status from Python backend
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:8000'
     const response = await fetch(`${backendUrl}/api/scan/status`, {
+      cache: 'no-store',
       headers: {
         'Authorization': `Bearer ${session.accessToken}`,
       },
