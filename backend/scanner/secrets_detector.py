@@ -16,6 +16,28 @@ class SecretFinding:
     description: str
     remediation: str
 
+# npm/yarn/pnpm lockfiles (and similar) store integrity hashes — base64-like strings that
+# falsely match "AWS secret key" and high-entropy heuristics. Never secret-scan these paths.
+_SKIP_SECRET_SCAN_BASENAMES = frozenset(
+    {
+        "package-lock.json",
+        "npm-shrinkwrap.json",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        "poetry.lock",
+        "pipfile.lock",
+        "cargo.lock",
+        "go.sum",
+        "composer.lock",
+        "gemfile.lock",
+    }
+)
+
+
+def _basename_normalized(file_path: str) -> str:
+    return file_path.replace("\\", "/").rsplit("/", 1)[-1].lower()
+
+
 class SecretsDetector:
     def __init__(self):
         self.patterns = {
@@ -185,6 +207,10 @@ class SecretsDetector:
     
     def scan_content(self, content: str, file_path: str) -> List[Dict[str, Any]]:
         """Scan file content for secrets"""
+        base = _basename_normalized(file_path)
+        if base in _SKIP_SECRET_SCAN_BASENAMES or base.endswith(".lock"):
+            return []
+
         findings = []
         lines = content.split('\n')
         
