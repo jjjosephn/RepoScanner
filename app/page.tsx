@@ -56,7 +56,7 @@ export default function Home() {
               </p>
               <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row sm:flex-wrap">
                 <Button
-                  onClick={() => signIn("github")}
+                  onClick={() => signIn("github", { callbackUrl: "/" })}
                   size="lg"
                   className="rounded-full px-8"
                 >

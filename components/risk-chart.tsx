@@ -19,6 +19,7 @@ import {
   PieChart,
   Pie,
   Cell,
+  Legend,
 } from "recharts";
 
 interface Repository {
@@ -124,19 +125,53 @@ export function RiskChart({ repositories }: RiskChartProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[300px] w-full min-h-[240px]">
+          <div className="h-[340px] w-full min-h-[260px] overflow-visible">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
+              <PieChart
+                margin={{ top: 12, right: 12, bottom: 8, left: 12 }}
+              >
                 <Pie
                   data={riskData}
                   cx="50%"
-                  cy="50%"
+                  cy="46%"
                   labelLine={false}
-                  label={({ name, count, percent }) =>
-                    `${name}: ${count} (${(percent * 100).toFixed(0)}%)`
-                  }
-                  outerRadius={88}
+                  label={({
+                    cx,
+                    cy,
+                    midAngle,
+                    innerRadius,
+                    outerRadius,
+                    percent,
+                  }) => {
+                    if (percent < 0.06) return null;
+                    const RADIAN = Math.PI / 180;
+                    const or =
+                      typeof outerRadius === "number" && Number.isFinite(outerRadius)
+                        ? outerRadius
+                        : 72;
+                    const ir =
+                      typeof innerRadius === "number" && Number.isFinite(innerRadius)
+                        ? innerRadius
+                        : 0;
+                    const r = or * 0.58 + ir * 0.42;
+                    const x = cx + r * Math.cos(-midAngle * RADIAN);
+                    const y = cy + r * Math.sin(-midAngle * RADIAN);
+                    return (
+                      <text
+                        x={x}
+                        y={y}
+                        fill="hsl(var(--foreground))"
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        className="text-[11px] font-medium"
+                      >
+                        {`${(percent * 100).toFixed(0)}%`}
+                      </text>
+                    );
+                  }}
+                  outerRadius="62%"
                   dataKey="count"
+                  nameKey="name"
                 >
                   {riskData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
@@ -148,6 +183,26 @@ export function RiskChart({ repositories }: RiskChartProps) {
                     border: "1px solid hsl(var(--border))",
                     borderRadius: "var(--radius-md)",
                     color: "hsl(var(--foreground))",
+                  }}
+                />
+                <Legend
+                  verticalAlign="bottom"
+                  align="center"
+                  wrapperStyle={{ paddingTop: 8 }}
+                  formatter={(value, entry) => {
+                    const payload = entry.payload as { count?: number } | undefined;
+                    const count =
+                      typeof payload?.count === "number"
+                        ? payload.count
+                        : riskData.find((d) => d.name === value)?.count ?? 0;
+                    return (
+                      <span className="text-xs text-muted-foreground">
+                        {value}
+                        <span className="ml-1 tabular-nums text-foreground">
+                          ({count})
+                        </span>
+                      </span>
+                    );
                   }}
                 />
               </PieChart>

@@ -34,6 +34,7 @@ import {
   Info,
   Eye,
   EyeOff,
+  Play,
 } from "lucide-react";
 
 const EMPTY_SUMMARY = {
@@ -131,7 +132,8 @@ function DemoRepoRow({ repo }: { repo: (typeof DEMO_REPOSITORIES)[0] }) {
 }
 
 export function MarketingLiveDemo() {
-  const [replayToken, setReplayToken] = useState(0);
+  /** 0 = idle preview; increment to start or replay the scripted demo (motion users only). */
+  const [runSeq, setRunSeq] = useState(0);
   const [scanProgress, setScanProgress] = useState(0);
   const [isScanning, setIsScanning] = useState(false);
   const [summary, setSummary] = useState(EMPTY_SUMMARY);
@@ -169,8 +171,25 @@ export function MarketingLiveDemo() {
     setRevealedDepsCount(DEMO_DEPENDENCY_RISKS.length);
   }, [clearTimers]);
 
+  /** Reduced motion: show full sample once (no autoplay animation, but immediate content). */
+  useEffect(() => {
+    if (!prefersReducedMotion()) return;
+    applyFinalState();
+    setRunSeq(1);
+  }, [applyFinalState]);
+
+  /** Scripted demo runs only after the user chooses Run demo / Replay (motion users). */
   useEffect(() => {
     clearTimers();
+
+    if (prefersReducedMotion()) {
+      return () => clearTimers();
+    }
+
+    if (runSeq === 0) {
+      return () => clearTimers();
+    }
+
     setScanProgress(0);
     setIsScanning(false);
     setSummary({ ...EMPTY_SUMMARY });
@@ -178,11 +197,6 @@ export function MarketingLiveDemo() {
     setFindingsVisible(false);
     setRevealedSecretsCount(0);
     setRevealedDepsCount(0);
-
-    if (prefersReducedMotion()) {
-      applyFinalState();
-      return;
-    }
 
     const schedule = (fn: () => void, ms: number) => {
       const id = setTimeout(() => {
@@ -223,7 +237,15 @@ export function MarketingLiveDemo() {
     }, DEMO_MS.beforeScan);
 
     return () => clearTimers();
-  }, [replayToken, applyFinalState, clearTimers]);
+  }, [runSeq, clearTimers]);
+
+  const startOrReplayDemo = useCallback(() => {
+    if (prefersReducedMotion()) {
+      applyFinalState();
+      return;
+    }
+    setRunSeq((s) => s + 1);
+  }, [applyFinalState]);
 
   /** Stagger secret then dependency cards (slide-in) after findings shell is visible. */
   useEffect(() => {
@@ -266,11 +288,7 @@ export function MarketingLiveDemo() {
 
   /** Keep the bottom of the demo in view as repos / findings grow (only if section is on-screen). */
   useEffect(() => {
-    const idle =
-      visibleRepoCount === 0 &&
-      !findingsVisible &&
-      summary.totalRepositories === 0 &&
-      !isScanning;
+    const idle = runSeq === 0 && !isScanning;
     if (idle) return;
 
     const section = sectionRef.current;
@@ -312,12 +330,8 @@ export function MarketingLiveDemo() {
     revealedDepsCount,
     summary.totalRepositories,
     isScanning,
+    runSeq,
   ]);
-
-  const replay = () => {
-    clearTimers();
-    setReplayToken((t) => t + 1);
-  };
 
   const copyDemo = (text: string) => {
     void navigator.clipboard.writeText(text);
@@ -342,20 +356,23 @@ export function MarketingLiveDemo() {
             Live demo
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
-            Walk through a scripted sample scan—same layout patterns as the
-            signed-in dashboard, without GitHub or the backend.
+            Same layout as the signed-in dashboard—run the scripted sample when
+            you are ready (no GitHub or backend).
           </p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="shrink-0 rounded-full"
-          onClick={replay}
-        >
-          <RefreshCw className="mr-2 h-4 w-4" aria-hidden />
-          Replay demo
-        </Button>
+        {(prefersReducedMotion() || runSeq > 0) && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0 rounded-full"
+            onClick={() => startOrReplayDemo()}
+            disabled={!prefersReducedMotion() && isScanning}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" aria-hidden />
+            {prefersReducedMotion() ? "Show sample again" : "Replay demo"}
+          </Button>
+        )}
       </div>
 
       <div
@@ -372,6 +389,44 @@ export function MarketingLiveDemo() {
           layout only. No code of yours is read or scanned on this page.
         </p>
       </div>
+
+      {runSeq === 0 && !prefersReducedMotion() && (
+        <div className="mb-8 space-y-8">
+          <SummaryStatCards
+            totalRepositories={EMPTY_SUMMARY.totalRepositories}
+            repositoriesScanned={EMPTY_SUMMARY.repositoriesScanned}
+            secretsFound={EMPTY_SUMMARY.secretsFound}
+            dependencyRisks={EMPTY_SUMMARY.dependencyRisks}
+            securityScorePercent="0"
+          />
+          <div>
+            <h3 className="font-display text-lg font-semibold text-foreground">
+              Sample repositories
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              One example row below — run the demo to animate a full scan and
+              findings.
+            </p>
+            <div className="mt-4">
+              <DemoRepoRow repo={DEMO_REPOSITORIES[0]} />
+            </div>
+          </div>
+          <div className="flex flex-col items-center gap-3 border border-dashed border-border/80 bg-muted/20 py-10">
+            <p className="text-center text-sm text-muted-foreground">
+              See the progress bar, stats, and sample findings play out.
+            </p>
+            <Button
+              type="button"
+              size="lg"
+              className="rounded-full px-8"
+              onClick={() => startOrReplayDemo()}
+            >
+              <Play className="mr-2 h-4 w-4" aria-hidden />
+              Run demo
+            </Button>
+          </div>
+        </div>
+      )}
 
       {isScanning && (
         <Card className="mb-8 border-primary/20 shadow-elevated">

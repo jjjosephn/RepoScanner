@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,10 +28,21 @@ interface ScanSummary {
   isScanning: boolean;
   scanProgress: number;
   scanningRepositoryCount: number;
+  /** Single-repo scan: path of the file being processed (from backend live state). */
+  scanCurrentFile: string | null;
+  scanFileIndex: number;
+  scanFileTotal: number;
 }
 
 export function Dashboard() {
+  const router = useRouter();
   const { data: session } = useSession();
+
+  const handleSignOut = async () => {
+    await signOut({ redirect: false });
+    router.push("/");
+    router.refresh();
+  };
   const [summary, setSummary] = useState<ScanSummary>({
     totalRepositories: 0,
     repositoriesScanned: 0,
@@ -39,6 +51,9 @@ export function Dashboard() {
     isScanning: false,
     scanProgress: 0,
     scanningRepositoryCount: 0,
+    scanCurrentFile: null,
+    scanFileIndex: 0,
+    scanFileTotal: 0,
   });
 
   const [repositories, setRepositories] = useState([]);
@@ -66,7 +81,14 @@ export function Dashboard() {
   };
 
   const startScan = async (repoIds?: string[]) => {
-    setSummary((prev) => ({ ...prev, isScanning: true, scanProgress: 0 }));
+    setSummary((prev) => ({
+      ...prev,
+      isScanning: true,
+      scanProgress: 0,
+      scanCurrentFile: null,
+      scanFileIndex: 0,
+      scanFileTotal: 0,
+    }));
 
     try {
       const response = await fetch("/api/scan", {
@@ -76,7 +98,9 @@ export function Dashboard() {
       });
 
       if (response.ok) {
-        pollScanProgress();
+        void pollScanProgress();
+      } else {
+        setSummary((prev) => ({ ...prev, isScanning: false }));
       }
     } catch (error) {
       console.error("Failed to start scan:", error);
@@ -92,7 +116,13 @@ export function Dashboard() {
       });
 
       if (response.ok) {
-        setSummary((prev) => ({ ...prev, isScanning: false }));
+        setSummary((prev) => ({
+          ...prev,
+          isScanning: false,
+          scanCurrentFile: null,
+          scanFileIndex: 0,
+          scanFileTotal: 0,
+        }));
         fetchRepositories();
       }
     } catch (error) {
@@ -102,42 +132,64 @@ export function Dashboard() {
 
   const pollScanProgress = async () => {
     let pollCount = 0;
-    const interval = setInterval(async () => {
+    let interval: ReturnType<typeof setInterval> | null = null;
+    let scanFinished = false;
+
+    const tick = async () => {
       try {
-        const response = await fetch("/api/scan/status");
-        if (response.ok) {
-          const data = await response.json();
+        const response = await fetch("/api/scan/status", { cache: "no-store" });
+        if (!response.ok) return;
 
-          setSummary((prev) => ({
-            ...prev,
-            scanProgress: data.progress,
-            repositoriesScanned: data.scannedCount,
-            secretsFound: data.secretsFound,
-            dependencyRisks: data.dependencyRisks,
-            scanningRepositoryCount:
-              data.totalRepositories || prev.scanningRepositoryCount,
-            isScanning: data.completed ? false : prev.isScanning,
-          }));
+        const data = await response.json();
 
-          if (
-            !data.completed &&
-            data.totalRepositories > 1 &&
-            pollCount % 4 === 0
-          ) {
-            fetchRepositories();
-          }
+        setSummary((prev) => ({
+          ...prev,
+          scanProgress: typeof data.progress === "number" ? data.progress : 0,
+          repositoriesScanned: data.scannedCount ?? 0,
+          secretsFound: data.secretsFound ?? 0,
+          dependencyRisks: data.dependencyRisks ?? 0,
+          scanningRepositoryCount:
+            data.totalRepositories || prev.scanningRepositoryCount,
+          isScanning: data.completed ? false : prev.isScanning,
+          scanCurrentFile: data.completed
+            ? null
+            : typeof data.currentFile === "string" && data.currentFile
+              ? data.currentFile
+              : null,
+          scanFileIndex: data.fileIndex ?? 0,
+          scanFileTotal: data.fileTotal ?? 0,
+        }));
 
-          if (data.completed) {
+        if (
+          !data.completed &&
+          data.totalRepositories > 1 &&
+          pollCount > 0 &&
+          pollCount % 3 === 0
+        ) {
+          fetchRepositories();
+        }
+
+        pollCount += 1;
+
+        if (data.completed) {
+          scanFinished = true;
+          if (interval != null) {
             clearInterval(interval);
-            fetchRepositories();
+            interval = null;
           }
-
-          pollCount++;
+          fetchRepositories();
         }
       } catch (error) {
         console.error("Failed to fetch scan status:", error);
       }
-    }, 2000);
+    };
+
+    await tick();
+    if (!scanFinished) {
+      interval = setInterval(() => {
+        void tick();
+      }, 400);
+    }
   };
 
   const securityScore =
@@ -180,7 +232,7 @@ export function Dashboard() {
             <span className="hidden max-w-[10rem] truncate text-sm font-medium text-foreground sm:inline">
               {session?.user?.name}
             </span>
-            <Button variant="outline" size="sm" onClick={() => signOut()}>
+            <Button variant="outline" size="sm" onClick={() => void handleSignOut()}>
               Sign out
             </Button>
           </div>
@@ -207,11 +259,16 @@ export function Dashboard() {
                 Scanning repositories
               </CardTitle>
               <CardDescription>
-                Progress updates every few seconds. You can cancel if needed.
+                Live progress (single-repo scans step through files). You can cancel if needed.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <Progress value={summary.scanProgress} aria-label="Scan progress" />
+              {summary.scanFileTotal > 0 && summary.scanCurrentFile ? (
+                <p className="truncate font-mono text-xs text-muted-foreground" title={summary.scanCurrentFile}>
+                  File {summary.scanFileIndex} of {summary.scanFileTotal}: {summary.scanCurrentFile}
+                </p>
+              ) : null}
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-muted-foreground">
                   {summary.scanProgress}% complete — {summary.repositoriesScanned}{" "}
@@ -258,7 +315,7 @@ export function Dashboard() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="w-full justify-start overflow-x-auto sm:w-auto">
+          <TabsList className="flex h-auto min-h-10 w-full flex-wrap justify-start sm:inline-flex sm:h-10 sm:w-auto sm:flex-nowrap">
             <TabsTrigger value="repositories">Repositories</TabsTrigger>
             <TabsTrigger value="findings">Security findings</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
